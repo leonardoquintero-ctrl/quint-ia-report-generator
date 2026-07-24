@@ -80,8 +80,8 @@ Without `ANTHROPIC_API_KEY`, the fast pass and both report syntheses fail cleanl
    - Domain authority (`domainAuthority.ts`): referring-domain count — mocked, no
      Ahrefs/Moz account yet.
    - Prompt visibility (`visibility.ts`): the client's target buyer questions run
-     against Claude (real, via `web_search`), ChatGPT, and Perplexity (both mocked —
-     see below), citation-checked per domain, concurrency-limited via `p-limit`.
+     against Claude, ChatGPT, and Perplexity (all three real — see "Engine adapters"
+     below), citation-checked per domain, concurrency-limited via `p-limit`.
      `visibility_score` is ChatGPT + Perplexity only; Claude's real results are a
      bonus signal excluded from the score.
    - Off-site / entity consistency (`offsite.ts`): YouTube (real, via the YouTube Data
@@ -129,23 +129,38 @@ placeholder contract, not a confirmed one.
 
 ## Engine adapters (`src/lib/engines/`)
 
-`EngineAdapter.runQuery(prompt, context)` → `{ responseText, citations }`. Claude is
-real, using Anthropic's `web_search` server tool (`claude-adapter.ts`) — citations come
-from the `citations` array attached to response text blocks (what Claude actually
-cited), not every raw search result it saw. ChatGPT and Perplexity are
-`MockEngineAdapter` instances (`mock-adapter.ts`) that fabricate deterministic
-citation behavior per `(engine, prompt, domain)` — clearly marked as mock, not a real
-signal. `context.domainsToCheck` lets the mock reference the actual client/competitor
-domains being scored rather than a generic placeholder URL.
+`EngineAdapter.runQuery(prompt, context)` → `{ responseText, citations }`. All three
+engines are real now:
+
+- **Claude** (`claude-adapter.ts`) — Anthropic's `web_search` server tool; citations
+  come from the `citations` array attached to response text blocks (what Claude
+  actually cited), not every raw search result it saw.
+- **ChatGPT** (`chatgpt-adapter.ts`) — OpenAI's Responses API `web_search` tool;
+  citations come from `url_citation` annotations on the output message's text, same
+  "what it actually cited" semantics as Claude.
+- **Perplexity** (`perplexity-adapter.ts`) — Perplexity's **Search API**
+  (`api.perplexity.ai/search`), not the Sonar chat/answer API. This means "citation"
+  here is a different, slightly weaker signal than the other two: a domain appearing
+  among the top search results returned for the buyer prompt used as the query, not a
+  domain cited inside a generated answer. Swap for Sonar's chat API later if
+  answer-generated citations are preferred — same `EngineAdapter` interface either way.
+
+Each adapter falls back to `MockEngineAdapter` (`mock-adapter.ts`) if its API key
+isn't set (`getEngineAdapters()` in `src/lib/fullpass/visibility.ts` checks
+`process.env.OPENAI_API_KEY`/`PERPLEXITY_API_KEY` directly), so local dev or a preview
+deployment missing a key still runs the full pipeline end to end instead of hard
+failing. `context.domainsToCheck` lets the mocks reference the actual
+client/competitor domains being scored rather than a generic placeholder URL.
 
 Only ChatGPT + Perplexity count toward `visibility_score`, per the Instant Assessment
 spec — Claude's real results still run and are captured under `claude_bonus_signal`
 (internal-only, never in the client-facing report).
 
-To go live: implement `EngineAdapter` for ChatGPT (OpenAI's Responses API
-`web_search` tool) or Perplexity (`sonar` model) and swap the `MockEngineAdapter`
-instance in `getEngineAdapters()` in `src/lib/fullpass/visibility.ts`. Nothing else
-changes.
+Per-combo failures (rate limits, quota errors, transient API issues) are caught in
+`runPromptVisibilityChecks` and recorded as "not cited" rather than crashing the whole
+full pass — a `429 insufficient_quota` from OpenAI (no billing configured) or a
+`rate_limit_exceeded` (real billing, just a low tier) both degrade the same way:
+logged, that one combo counts as uncited, the rest of the pipeline continues.
 
 ## Long-running full pass & the queue provider (`src/lib/queue/provider.ts`)
 
@@ -223,6 +238,11 @@ durably retrievable at `/report/[token]`, not just emailed once.
   can't read, not a certainty; some legitimately short pages will be flagged too.
 - **Domain Authority and entity-consistency checks are mocked/stubbed** — no
   Ahrefs/Moz/LinkedIn/Crunchbase integration decided yet; see "Deferred / stubbed."
+- **Perplexity uses the Search API, not Sonar** — the credentials/example provided
+  were for `api.perplexity.ai/search` specifically. "Citation" for this engine means a
+  domain appearing in the top search results for the buyer prompt, not a domain cited
+  inside a generated answer (how Claude/ChatGPT work here) — a real, disclosed
+  difference in what "visibility" means per engine, not a bug.
 - **`@anthropic-ai/sdk` pinned to `^0.114.0`**, not `^0.32.1` — worth checking the
   funnel app's pin too; `^0.32.1` on a 0.x package only allows patch updates within
   `0.32.x` under semver rules, so it's very likely stuck on a stale SDK version

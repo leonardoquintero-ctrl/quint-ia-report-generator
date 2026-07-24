@@ -1,5 +1,7 @@
 import pLimit from "p-limit";
 import { ClaudeEngineAdapter } from "../engines/claude-adapter";
+import { ChatGptEngineAdapter } from "../engines/chatgpt-adapter";
+import { PerplexityEngineAdapter } from "../engines/perplexity-adapter";
 import { MockEngineAdapter } from "../engines/mock-adapter";
 import { isDomainCited } from "../engines/citation";
 import type { EngineAdapter } from "../engines/types";
@@ -7,13 +9,19 @@ import type { CompetitorInput, EngineName, ScoredEngineName, VisibilityMention, 
 
 const SCORED_ENGINES: ScoredEngineName[] = ["chatgpt", "perplexity"];
 
-// Claude is real (web_search tool) — it still runs and its results are captured
-// (visibility.claude_bonus_signal) since it's free real data, but per the Instant
-// Assessment spec, visibility_score is ChatGPT + Perplexity only. ChatGPT/Perplexity
-// are mocked until their API keys arrive; swap either MockEngineAdapter instance for
-// a real implementation here to go live — nothing else in the pipeline changes.
+// All three engines have real implementations now (Claude's web_search tool, ChatGPT's
+// Responses API web_search tool, Perplexity's Search API — see perplexity-adapter.ts
+// for how its citation semantics differ slightly from the other two). Each falls back
+// to its mock if the corresponding API key isn't set, so local dev / a preview
+// deployment without every key still runs end to end instead of hard-failing. Per the
+// Instant Assessment spec, visibility_score is ChatGPT + Perplexity only — Claude's
+// real results still run and are captured separately (visibility.claude_bonus_signal).
 function getEngineAdapters(): EngineAdapter[] {
-  return [new ClaudeEngineAdapter(), new MockEngineAdapter("chatgpt", 30), new MockEngineAdapter("perplexity", 30)];
+  return [
+    new ClaudeEngineAdapter(),
+    process.env.OPENAI_API_KEY ? new ChatGptEngineAdapter() : new MockEngineAdapter("chatgpt", 30),
+    process.env.PERPLEXITY_API_KEY ? new PerplexityEngineAdapter() : new MockEngineAdapter("perplexity", 30),
+  ];
 }
 
 // Concurrency-limited to avoid bursting rate limits across ~60 live calls
