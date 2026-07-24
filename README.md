@@ -7,6 +7,8 @@ synthesized reports (client-facing + internal owner). The upstream CTA → HubSp
 
 **Deployed:** https://quint-ia-report-generator.vercel.app — auto-deploys on push to
 `main` via the GitHub → Vercel integration (project `quint-ia/quint-ia-report-generator`).
+Other branches/PRs get their own preview deployment URL automatically, using the same
+env vars scoped to the "Preview" environment in Vercel.
 
 ## Setup
 
