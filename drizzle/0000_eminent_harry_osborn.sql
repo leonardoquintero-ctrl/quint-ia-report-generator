@@ -1,0 +1,22 @@
+CREATE TABLE `reports` (
+	`id` text PRIMARY KEY NOT NULL,
+	`hubspot_contact_id` text,
+	`hubspot_deal_id` text,
+	`company_name` text NOT NULL,
+	`domain` text NOT NULL,
+	`competitors` text NOT NULL,
+	`target_questions` text NOT NULL,
+	`locale` text DEFAULT 'EN' NOT NULL,
+	`email` text NOT NULL,
+	`contact_name` text NOT NULL,
+	`status` text DEFAULT 'fast_pass_pending' NOT NULL,
+	`fast_pass_json` text,
+	`fast_pass_email_sent_at` integer,
+	`full_pass_json` text,
+	`full_pass_error` text,
+	`full_pass_completed_at` integer,
+	`client_report_json` text,
+	`owner_report_json` text,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL
+);
