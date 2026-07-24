@@ -11,6 +11,13 @@ function getClient(): Anthropic {
 
 const TOOL_NAME = "record_owner_report";
 
+// Static, not LLM-generated — guarantees the wording is always exactly this,
+// regardless of how Claude phrases the rest of the report. Confirmed with the user:
+// the action skeleton stays, but must always read as draft suggestions, not the
+// final Blueprint content.
+const DISCLAIMER =
+  "Draft suggestions only, generated automatically — not the final Blueprint. Review, edit, and reprioritize before anything here reaches the client.";
+
 const OWNER_REPORT_SCHEMA = {
   type: "object" as const,
   properties: {
@@ -48,8 +55,8 @@ const SYSTEM_PROMPT = `You are generating the internal Quick-Start Blueprint own
 Constraints:
 1. Flagged anomalies first: bot blocks, 404s on key pages, missing SSL, or anything else broken — surfaced at the top, not buried.
 2. Raw findings: full detail across all pillars and pages checked. Do not simplify or hide data.
-3. Competitor comparison: compare visibility against any supplied competitor domains. If none were supplied, this field must be null.
-4. Action skeleton: a draft 90-day action list, every item tagged DIY, Partner, or Done-For-You. This is a draft for the team to edit — keep it structured and blunt, not narrative prose.
+3. Competitor comparison: this field must be null ONLY if zero competitor domains were supplied. If even one competitor domain is supplied below, this field is REQUIRED and must compare the client's visibility_score/share-of-voice/citation data against each supplied competitor by name — never null when competitors exist.
+4. Action skeleton: REQUIRED, minimum 3 items, every item tagged DIY, Partner, or Done-For-You — never an empty array. Even with limited test data, synthesize at least one action item per real gap found in raw_findings/flagged_anomalies (e.g. missing schema, missing entity profiles, thin content). This is a draft for the team to edit — keep it structured and blunt, not narrative prose.
 No client-facing disclaimers are needed. This is an internal working document — write in English regardless of the client's locale.`;
 
 export async function synthesizeOwnerReport(
@@ -83,8 +90,9 @@ export async function synthesizeOwnerReport(
   // strictly enforced — `required` doesn't guarantee a field is actually present, as
   // observed with `action_skeleton` being dropped entirely. Defaulting missing
   // fields here rather than letting a downstream .map()/.join() throw on undefined.
-  const input = toolUse.input as Partial<Omit<OwnerReport, "generated_at">>;
+  const input = toolUse.input as Partial<Omit<OwnerReport, "generated_at" | "disclaimer">>;
   return {
+    disclaimer: DISCLAIMER,
     flagged_anomalies: input.flagged_anomalies ?? [],
     raw_findings: input.raw_findings ?? "",
     competitor_comparison: input.competitor_comparison ?? null,

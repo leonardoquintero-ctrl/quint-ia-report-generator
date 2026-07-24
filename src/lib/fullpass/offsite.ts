@@ -39,23 +39,19 @@ async function checkYouTube(companyName: string): Promise<{ channel_found: boole
   }
 }
 
-// G2/Capterra have no public "does this domain have a profile" API — checking this
-// for real means either scraping (fragile, ToS risk) or a paid search API
-// (SerpAPI/DataForSEO-style), neither of which is decided yet. Stubbed per the
-// handoff's own explicit deferral (§8) rather than faking a signal.
-async function checkG2Capterra(): Promise<OffsiteResult["g2_capterra"]> {
-  return { g2_profile: false, capterra_profile: false, review_count: 0 };
+// Entity-consistency (brand name/NAP) checks across LinkedIn, Crunchbase, G2, and
+// Capterra. None of these have a public "does this company have a profile" API —
+// the spec explicitly allows "best-effort scrape or manual-list fallback... for v1",
+// so these are clearly-stubbed false checks rather than real scraping (fragile,
+// ToS risk). Wire up a real check per source (a maintained list, a licensed data
+// provider, or a scraping service you're comfortable with) to go live — this
+// function is the only thing that needs to change.
+async function checkEntityConsistency(): Promise<OffsiteResult["entity_consistency"]> {
+  return { linkedin: false, crunchbase: false, g2: false, capterra: false };
 }
 
 export async function runOffsiteChecks(companyName: string): Promise<OffsiteResult> {
-  const [youtube, g2_capterra] = await Promise.all([checkYouTube(companyName), checkG2Capterra()]);
+  const [youtube, entity_consistency] = await Promise.all([checkYouTube(companyName), checkEntityConsistency()]);
 
-  return {
-    youtube,
-    g2_capterra,
-    // Two remaining sources are still unnamed (handoff §9 open item) — structure is
-    // ready, nothing to populate yet.
-    source_3_tbd: {},
-    source_4_tbd: {},
-  };
+  return { youtube, entity_consistency };
 }

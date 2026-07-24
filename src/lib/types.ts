@@ -5,8 +5,7 @@ export interface CompetitorInput {
   domain: string;
 }
 
-// ─── Fast pass (Handoff spec §4.1) ─────────────────────────────────────────
-// Purely technical, deterministic, no paid APIs — computed synchronously on intake.
+// ─── Fast pass (intake-time, synchronous, unchanged shape) ─────────────────
 export interface FastPassResult {
   domain: string;
   timestamp: string;
@@ -27,7 +26,24 @@ export interface FastPassResult {
   };
 }
 
-// ─── Full pass — site & content (§4.2) ─────────────────────────────────────
+// ─── Full pass — site checks (per-page, per "Instant Assessment" spec) ─────
+export interface CrawlabilityEntry {
+  path: string;
+  status: number;
+  crawlable: boolean;
+  // Present only when crawlable is false — distinguishes an outright block
+  // (4xx/5xx) from a 200 response with no meaningful server-rendered text
+  // (a JS-only shell an AI crawler can't read), per the spec's explicit ask.
+  reason?: "blocked" | "js_only_shell";
+}
+
+export interface TechnicalHealthEntry {
+  path: string;
+  h1_present: boolean;
+  word_count: number;
+  compressed: boolean;
+}
+
 export interface SchemaInventoryEntry {
   page: string;
   types_found: string[];
@@ -39,7 +55,17 @@ export interface KnowledgeGraphPageCheck {
   has_schema: boolean;
 }
 
+export interface LlmsTxtStatus {
+  llms_txt_valid: boolean;
+  robots_txt_valid: boolean;
+  errors: string[];
+}
+
 export interface SiteChecksResult {
+  crawlability: CrawlabilityEntry[];
+  technical_health: TechnicalHealthEntry[];
+  // Kept beyond the spec's minimum client-facing shape — internal detail the owner
+  // report's raw findings draw on; not shown to the client as-is.
   schema_inventory: SchemaInventoryEntry[];
   knowledge_graph_pages: {
     about: KnowledgeGraphPageCheck;
@@ -54,24 +80,33 @@ export interface SiteChecksResult {
     comparison_tables_found: number;
     author_bylines_found: number;
   };
+  llms_txt_status: LlmsTxtStatus;
+  // Per-bot detail behind llms_txt_status.errors — kept for the owner report; the
+  // client-facing report only ever shows the consolidated valid/invalid + errors.
+  robots_txt_bot_blocks: {
+    blocks_gptbot: boolean;
+    blocks_claudebot: boolean;
+    blocks_perplexitybot: boolean;
+    blocks_google_extended: boolean;
+  };
+  // Bonus internal signal, not part of the Instant Assessment spec's client-facing
+  // contract — same treatment as youtube/claude_bonus_signal: owner-report raw
+  // findings only.
   pagespeed: { lcp_seconds: number; score: number };
 }
 
-// ─── Full pass — prompt visibility (§4.3) ──────────────────────────────────
-export type EngineName = "perplexity" | "openai" | "claude";
+// ─── Full pass — prompt visibility ──────────────────────────────────────────
+// "chatgpt"/"perplexity" are the two engines that count toward visibility_score, per
+// the Instant Assessment spec. "claude" still runs for real (the one adapter with a
+// working key today) but is excluded from the score — a free bonus signal, not part
+// of the client-facing contract.
+export type EngineName = "chatgpt" | "perplexity" | "claude";
+export type ScoredEngineName = "chatgpt" | "perplexity";
 
-export interface CitationSource {
-  url: string;
-  title: string;
-}
-
-export interface PromptVisibilityResult {
+export interface VisibilityMention {
   prompt: string;
   engine: EngineName;
-  client_cited: boolean;
-  citations_returned: CitationSource[];
-  competitor_cited: { domain: string; cited: boolean }[];
-  error?: string;
+  cited: boolean;
 }
 
 export interface VisibilityResult {
@@ -79,56 +114,86 @@ export interface VisibilityResult {
   engines_covered: EngineName[];
   engines_not_covered: string[];
   coverage_note: string;
-  results: PromptVisibilityResult[];
+  mentions: VisibilityMention[]; // scored engines only (chatgpt + perplexity)
+  visibility_score: number; // 0-100, chatgpt + perplexity only
+  competitor_share_of_voice: Record<string, number>; // domain -> 0-100, includes the client's own domain for comparison
+  // Claude's real results, kept for engineering visibility / the owner report's raw
+  // findings — never surfaced in the client-facing report.
+  claude_bonus_signal: VisibilityMention[];
 }
 
-// ─── Full pass — off-site presence (§4.4) ──────────────────────────────────
+// ─── Full pass — domain authority ──────────────────────────────────────────
+export interface DomainAuthorityResult {
+  referring_domains: number;
+  source: "ahrefs" | "moz" | "mock";
+}
+
+// ─── Full pass — off-site / entity consistency ─────────────────────────────
+export interface EntityConsistency {
+  linkedin: boolean;
+  crunchbase: boolean;
+  g2: boolean;
+  capterra: boolean;
+}
+
 export interface OffsiteResult {
+  // Kept beyond the spec's entity-consistency set — extra signal for the owner
+  // report, not part of the client-facing contract.
   youtube: { channel_found: boolean; videos_found: number };
-  g2_capterra: { g2_profile: boolean; capterra_profile: boolean; review_count: number };
-  source_3_tbd: Record<string, never>;
-  source_4_tbd: Record<string, never>;
+  entity_consistency: EntityConsistency;
+}
+
+// ─── Full pass — strategic teasers (counts only, never content) ───────────
+export interface Teasers {
+  content_opportunities_found: number;
+  third_party_channels_flagged: number;
 }
 
 // ─── Assembled full-pass object stored in reports.full_pass_json ──────────
 export interface FullPassResult {
   site: SiteChecksResult;
   visibility: VisibilityResult;
+  domain_authority: DomainAuthorityResult;
   offsite: OffsiteResult;
+  teasers: Teasers;
 }
 
-// ─── Synthesized client report (§6.1) ──────────────────────────────────────
-export interface ClientReportFinding {
-  finding: string;
-  why_it_matters: string;
-  what_fixing_it_does: string;
-}
-
-export interface ClientReportScorecardEntry {
-  pillar: "technical_readability" | "owned_knowledge_graph" | "content_shape" | "offsite_citations";
-  label: string;
-  summary: string;
-}
-
+// ─── Client-facing report — spec-literal, zero recommendations/narrative ──
+// This is a direct rendering of FullPassResult, not an LLM synthesis — see
+// src/lib/synthesis/clientReport.ts for why that's deliberate.
 export interface ClientReport {
+  domain: string;
+  target_market: string;
   disclaimer: string;
-  scorecard: ClientReportScorecardEntry[];
-  findings: ClientReportFinding[];
   coverage_disclosure: string;
-  closing: string;
+  visibility_score: number;
+  visibility_detail: {
+    prompts_tracked: number;
+    mentions: VisibilityMention[];
+    competitor_share_of_voice: Record<string, number>;
+  };
+  domain_authority: DomainAuthorityResult;
+  crawlability: CrawlabilityEntry[];
+  technical_health: TechnicalHealthEntry[];
+  llms_txt_status: LlmsTxtStatus;
+  entity_consistency: EntityConsistency;
+  teasers: Teasers;
   locale: Locale;
   generated_at: string;
 }
 
-// ─── Synthesized owner report (§6.2) ───────────────────────────────────────
+// ─── Owner report — internal only, still Claude-synthesized ───────────────
 export interface OwnerActionItem {
   item: string;
   tag: "DIY" | "Partner" | "Done-For-You";
 }
 
 export interface OwnerReport {
+  // Always present: these are draft suggestions for the Blueprint-crafting team,
+  // never the final Blueprint content — see the resist-scope-creep memory note.
+  disclaimer: string;
   flagged_anomalies: string[];
-  raw_findings: string; // plain-language but unsimplified narrative per pillar
+  raw_findings: string;
   competitor_comparison: string | null;
   action_skeleton: OwnerActionItem[];
   generated_at: string;

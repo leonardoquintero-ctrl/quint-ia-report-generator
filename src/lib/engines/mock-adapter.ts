@@ -20,10 +20,10 @@ function hashString(input: string): number {
 }
 
 export class MockEngineAdapter implements EngineAdapter {
-  readonly engineName: "openai" | "perplexity";
+  readonly engineName: "chatgpt" | "perplexity";
   private citationWeight: number; // 0-100, rough odds any given domain gets "cited"
 
-  constructor(engineName: "openai" | "perplexity", citationWeight = 30) {
+  constructor(engineName: "chatgpt" | "perplexity", citationWeight = 30) {
     this.engineName = engineName;
     this.citationWeight = citationWeight;
   }

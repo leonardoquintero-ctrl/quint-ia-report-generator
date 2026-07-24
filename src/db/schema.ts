@@ -16,6 +16,7 @@ export const reports = sqliteTable("reports", {
   hubspotDealId: text("hubspot_deal_id"),
   companyName: text("company_name").notNull(),
   domain: text("domain").notNull(),
+  targetMarket: text("target_market").notNull().default("Not specified"),
   competitors: text("competitors").notNull(), // JSON: [{ name?, domain }]
   targetQuestions: text("target_questions").notNull(), // JSON: string[]
   locale: text("locale").notNull().default("EN"), // "EN" | "ES"

@@ -10,6 +10,11 @@ export const intakeWebhookSchema = z.object({
   hubspot_deal_id: z.string().optional(),
   company_name: z.string().trim().min(1),
   domain: z.string().trim().min(1),
+  // e.g. "US", "Colombia", "LatAm->US" — shown as-is on the client report. Kept
+  // separate from target_questions: this app takes client-supplied buyer questions
+  // directly (more precise than generating them from a market string), but the
+  // report still needs a market label per the Instant Assessment spec's output shape.
+  target_market: z.string().trim().min(1).default("Not specified"),
   competitors: z
     .array(
       z.object({

@@ -1,0 +1,1 @@
+ALTER TABLE `reports` ADD `target_market` text DEFAULT 'Not specified' NOT NULL;

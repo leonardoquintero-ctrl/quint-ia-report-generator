@@ -17,7 +17,10 @@ export interface EngineQueryContext {
   domainsToCheck: string[];
 }
 
+// "chatgpt"/"perplexity" are the two engines the Instant Assessment spec scores;
+// "claude" still runs for real but is a bonus signal excluded from the score — see
+// src/lib/types.ts's EngineName/ScoredEngineName for where this distinction matters.
 export interface EngineAdapter {
-  readonly engineName: "claude" | "openai" | "perplexity";
+  readonly engineName: "claude" | "chatgpt" | "perplexity";
   runQuery(prompt: string, context: EngineQueryContext): Promise<EngineQueryResult>;
 }

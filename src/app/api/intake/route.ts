@@ -27,6 +27,7 @@ export async function POST(req: Request) {
       hubspotDealId: data.hubspot_deal_id,
       companyName: data.company_name,
       domain: data.domain,
+      targetMarket: data.target_market,
       competitors: JSON.stringify(data.competitors),
       targetQuestions: JSON.stringify(data.target_questions),
       locale: data.locale,

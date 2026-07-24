@@ -24,7 +24,7 @@ async function fetchWithTimeout(url: string, timeoutMs = FETCH_TIMEOUT_MS): Prom
   }
 }
 
-function checkLlmsTxt(content: string): { present: boolean; valid_format: boolean; issues: string[] } {
+export function checkLlmsTxt(content: string): { present: boolean; valid_format: boolean; issues: string[] } {
   const issues: string[] = [];
   const trimmed = content.trim();
 
