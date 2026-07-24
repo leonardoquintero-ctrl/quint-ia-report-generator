@@ -5,6 +5,9 @@ full-pass scan (site checks + 3-engine prompt visibility + off-site presence), a
 synthesized reports (client-facing + internal owner). The upstream CTA → HubSpot form
 → payment flow is a separate, already-built app — this one starts where that ends.
 
+**Deployed:** https://quint-ia-report-generator.vercel.app — auto-deploys on push to
+`main` via the GitHub → Vercel integration (project `quint-ia/quint-ia-report-generator`).
+
 ## Setup
 
 ```bash
