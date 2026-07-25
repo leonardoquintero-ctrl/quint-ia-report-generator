@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "@/db/client";
 import { reports } from "@/db/schema";
 import { intakeWebhookSchema } from "@/lib/validation";
@@ -50,9 +50,14 @@ export async function POST(req: Request) {
       })
       .where(eq(reports.id, report.id));
 
-    // Fire-and-forget: a slow/failed email must not block the intake response.
-    sendFastPassEmail(data.email, fastPass, data.locale).catch((err) =>
-      console.error(`[intake] Fast-pass email failed for report ${report.id}:`, err)
+    // Deferred via after(), not plain fire-and-forget: a slow/failed email must not
+    // block the intake response, but without after() the serverless function can
+    // freeze right after responding and cut this network call off mid-flight before
+    // it (or its .catch() logger) ever completes.
+    after(() =>
+      sendFastPassEmail(data.email, fastPass, data.locale).catch((err) =>
+        console.error(`[intake] Fast-pass email failed for report ${report.id}:`, err)
+      )
     );
   } catch (err) {
     console.error(`[intake] Fast pass failed for report ${report.id}:`, err);
