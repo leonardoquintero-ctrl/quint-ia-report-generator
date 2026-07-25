@@ -36,8 +36,12 @@ class QStashQueueProvider implements QueueProvider {
       throw new Error("QSTASH_TOKEN and QSTASH_CALLBACK_BASE_URL must both be set to use QStashQueueProvider.");
     }
 
+    // The destination URL goes after /v2/publish/ verbatim, NOT percent-encoded —
+    // QStash parses the remainder of the path as the literal target URL, so an
+    // encoded scheme (https%3A%2F%2F...) fails with "invalid destination url:
+    // endpoint has invalid scheme."
     const destination = `${baseUrl.replace(/\/$/, "")}/api/fullpass/run`;
-    const res = await fetch(`${qstashUrl.replace(/\/$/, "")}/v2/publish/${encodeURIComponent(destination)}`, {
+    const res = await fetch(`${qstashUrl.replace(/\/$/, "")}/v2/publish/${destination}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
