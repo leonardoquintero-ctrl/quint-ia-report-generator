@@ -20,20 +20,24 @@ class DirectCallQueueProvider implements QueueProvider {
   }
 }
 
-// TODO: this is untested until QSTASH_TOKEN + QSTASH_CALLBACK_BASE_URL are set — the
-// user is generating Upstash credentials separately. Publishes to QStash's REST API
-// directly (no need for their SDK just to publish; @upstash/qstash is used only for
-// verifying the callback's signature in /api/fullpass/run).
+// Publishes to QStash's REST API directly (no need for their SDK just to publish;
+// @upstash/qstash is used only for verifying the callback's signature in
+// /api/fullpass/run). QSTASH_URL matters: some accounts get a region-pinned QStash
+// cluster (e.g. https://qstash-us-east-1.upstash.io) rather than the shared global
+// https://qstash.upstash.io — publishing to the wrong one 404s with "user not found
+// in this region," so QSTASH_URL must come from the same console page as the token,
+// not be assumed.
 class QStashQueueProvider implements QueueProvider {
   async enqueueFullPass(reportId: string): Promise<void> {
     const token = process.env.QSTASH_TOKEN;
     const baseUrl = process.env.QSTASH_CALLBACK_BASE_URL;
+    const qstashUrl = process.env.QSTASH_URL || "https://qstash.upstash.io";
     if (!token || !baseUrl) {
       throw new Error("QSTASH_TOKEN and QSTASH_CALLBACK_BASE_URL must both be set to use QStashQueueProvider.");
     }
 
     const destination = `${baseUrl.replace(/\/$/, "")}/api/fullpass/run`;
-    const res = await fetch(`https://qstash.upstash.io/v2/publish/${encodeURIComponent(destination)}`, {
+    const res = await fetch(`${qstashUrl.replace(/\/$/, "")}/v2/publish/${encodeURIComponent(destination)}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
