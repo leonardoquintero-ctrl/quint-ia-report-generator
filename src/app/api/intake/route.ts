@@ -33,6 +33,7 @@ export async function POST(req: Request) {
       locale: data.locale,
       email: data.email,
       contactName: data.contact_name,
+      clientContext: data.client_context,
       status: "fast_pass_pending",
     })
     .returning();

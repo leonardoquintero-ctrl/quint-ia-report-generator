@@ -198,3 +198,33 @@ export interface OwnerReport {
   action_skeleton: OwnerActionItem[];
   generated_at: string;
 }
+
+// ─── Client assessment message — short post-payment email, Claude-synthesized ─────
+// Distinct from ClientReport above: ClientReport is the data-only /report/[token]
+// page (Section 7 of the Assessment Message spec — stays a pure rendering, no LLM).
+// This is the short (120-180 word) email sent immediately after payment, generated
+// per Section 5 of that spec. top_positive_finding/top_negative_finding/seo_findings
+// are picked by deterministic code (src/lib/synthesis/topFindings.ts), never by the
+// model — Claude only phrases what's already selected, so "exactly one fact, always
+// a real number" is guaranteed by code rather than trusted to model behavior.
+export interface TopFinding {
+  metric: string;
+  value: string;
+}
+
+export interface TopNegativeFinding extends TopFinding {
+  detail: string;
+}
+
+export interface ClientAssessmentMessageInput {
+  locale: Locale;
+  client_name: string;
+  domain: string;
+  target_market: string;
+  client_context: string;
+  visibility_score: { value: number; engines: string[] };
+  domain_authority: DomainAuthorityResult;
+  top_positive_finding: TopFinding;
+  top_negative_finding: TopNegativeFinding;
+  business_days: number;
+}

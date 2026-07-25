@@ -15,6 +15,13 @@
       "when": 1784910998394,
       "tag": "0001_volatile_ben_urich",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784951768621,
+      "tag": "0002_bouncy_shocker",
+      "breakpoints": true
     }
   ]
 }

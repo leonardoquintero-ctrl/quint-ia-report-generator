@@ -7,7 +7,7 @@ import { isDomainCited } from "../engines/citation";
 import type { EngineAdapter } from "../engines/types";
 import type { CompetitorInput, EngineName, ScoredEngineName, VisibilityMention, VisibilityResult } from "../types";
 
-const SCORED_ENGINES: ScoredEngineName[] = ["chatgpt", "perplexity"];
+export const SCORED_ENGINES: ScoredEngineName[] = ["chatgpt", "perplexity"];
 
 // All three engines have real implementations now (Claude's web_search tool, ChatGPT's
 // Responses API web_search tool, Perplexity's Search API — see perplexity-adapter.ts

@@ -22,6 +22,10 @@ export const reports = sqliteTable("reports", {
   locale: text("locale").notNull().default("EN"), // "EN" | "ES"
   email: text("email").notNull(),
   contactName: text("contact_name").notNull(),
+  // What the client told us about their own AI-visibility problem at intake, if
+  // anything — feeds the client assessment message's opening line. See
+  // intakeWebhookSchema in src/lib/validation.ts.
+  clientContext: text("client_context"),
 
   status: text("status").notNull().default("fast_pass_pending"),
 

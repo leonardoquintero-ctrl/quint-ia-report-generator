@@ -28,6 +28,13 @@ export const intakeWebhookSchema = z.object({
   locale: z.enum(["EN", "ES"]).default("EN"),
   email: z.string().trim().email(),
   contact_name: z.string().trim().min(1),
+  // Free-text: what the client told us about their own AI-visibility problem at
+  // intake (e.g. "70% of our traffic is stuck in Colombia"). Not collected by any
+  // upstream intake form yet — optional/defaulted so the client assessment message
+  // (src/lib/synthesis/clientMessage.ts) can ship now and pick this up automatically
+  // once an intake form starts sending it. Empty means that prompt opens with the
+  // diagnostic finding directly instead of a personal reference.
+  client_context: z.string().trim().optional().default(""),
 });
 
 export type IntakeWebhookPayload = z.infer<typeof intakeWebhookSchema>;

@@ -77,8 +77,8 @@ Without `ANTHROPIC_API_KEY`, the fast pass and both report syntheses fail cleanl
      possible), JS-only-shell detection (200 response, too little server-rendered text
      to be readable by an AI crawler), schema inventory, knowledge-graph page
      presence, content-shape heuristics, consolidated `llms_txt_status`.
-   - Domain authority (`domainAuthority.ts`): referring-domain count — mocked, no
-     Ahrefs/Moz account yet.
+   - Domain authority (`domainAuthority.ts`): referring-domain count via the Moz
+     Links API v2, falling back to a deterministic mock if `MOZ_API_KEY` is unset.
    - Prompt visibility (`visibility.ts`): the client's target buyer questions run
      against Claude, ChatGPT, and Perplexity (all three real — see "Engine adapters"
      below), citation-checked per domain, concurrency-limited via `p-limit`.
@@ -88,11 +88,19 @@ Without `ANTHROPIC_API_KEY`, the fast pass and both report syntheses fail cleanl
      API) plus LinkedIn/Crunchbase/G2/Capterra brand-consistency checks (all four
      stubbed — no scraping, no data-source decision made yet).
    - `clientReport.ts` (pure data transform, **not an LLM call**) renders the
-     full-pass JSON directly into the spec-literal client report — counts and raw
-     metrics only, zero recommendations. `ownerReport.ts` (Claude synthesis) produces
-     the internal report: raw findings, flagged anomalies first, a draft 90-day action
-     skeleton always paired with a disclaimer that it's suggestions only.
-   - **The client report emails automatically** the moment the full pass completes —
+     full-pass JSON directly into the spec-literal `/report/[token]` page — counts and
+     raw metrics only, zero recommendations, disclaimer at the top since it's a
+     document. `clientMessage.ts` (Claude synthesis) writes the separate, short
+     (120-180 word) email sent immediately after payment — confident/diagnostic voice,
+     exactly one root-cause sentence, one positive fact, one negative fact, one
+     headline score, per the Assessment Message spec. The fact/score values it's given
+     come from deterministic code (`topFindings.ts`), never the model's own judgment —
+     Claude only phrases what's already selected. `ownerReport.ts` (Claude synthesis)
+     produces the internal report: raw findings, flagged anomalies first, a draft
+     90-day action skeleton always paired with a disclaimer that it's suggestions
+     only. It's sent alongside the exact client message text, quoted verbatim (appended
+     in code, not reproduced by the model, since LLMs paraphrase even when told not to).
+   - **The client message emails automatically** the moment the full pass completes —
      there's no approval gate in this system. The bespoke, human-crafted Blueprint is
      a separate, later deliverable the team builds from the owner report's skeleton;
      it isn't sent by this app.
@@ -120,9 +128,14 @@ POST exactly this shape (`src/lib/validation.ts`):
   "target_questions": ["What's the best warehouse robotics platform for a mid-size operation?"],
   "locale": "EN",
   "email": "jordan@acmerobotics.com",
-  "contact_name": "Jordan Lee"
+  "contact_name": "Jordan Lee",
+  "client_context": "70% of our organic traffic is stuck in Colombia and we can't crack the US market"
 }
 ```
+
+`client_context` is optional (defaults to `""`) — free text on whatever AI-visibility problem the
+client stated at intake, if anything. Feeds the client assessment message's opening line (see
+below); no upstream intake form sends this yet.
 
 **Needs verification against the real HubSpot workflow once it's built** — this is a
 placeholder contract, not a confirmed one.
